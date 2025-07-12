@@ -68,8 +68,8 @@ object Server:
         .of(Map.empty[UUID, ConnectedClient[F]])
         .map(ref => new Clients(ref))
 
-  def start[F[_]: Concurrent: Network: Console: UUIDGen](port: Port) =
-    Stream.exec(Console[F].info(s"Starting server on port $port")) ++
+  def start[F[_]: Concurrent: Network: ConsoleF: UUIDGen](port: Port) =
+    Stream.exec(Console.info(s"Starting server on port $port").asF) ++
       Stream
         .eval(Clients[F])
         .flatMap { clients =>
@@ -81,7 +81,7 @@ object Server:
                   .traverse_(username =>
                     clients.broadcast(Protocol.ServerCommand.Alert(s"$username disconnected."))
                   )
-              } *> Console[F].info(s"Unregistered client ${state.id}")
+              } *> Console.info(s"Unregistered client ${state.id}").asF
             Stream
               .bracket(ConnectedClient[F](clientSocket).flatTap(clients.register))(
                 unregisterClient
@@ -92,7 +92,7 @@ object Server:
         }
         .parJoinUnbounded
 
-  private def handleClient[F[_]: Concurrent: Console](
+  private def handleClient[F[_]: Concurrent: ConsoleF](
       clients: Clients[F],
       clientState: ConnectedClient[F],
       clientSocket: Socket[F]
@@ -104,19 +104,19 @@ object Server:
       processIncoming(clients, clientState.id, clientState.messageSocket)
   }.handleErrorWith {
     case _: UserQuit =>
-      Stream.exec(Console[F].info(s"Client quit ${clientState.id}"))
+      Stream.exec(Console.info(s"Client quit ${clientState.id}").asF)
     case err         =>
       Stream.exec(
-        Console[F].errorln(s"Fatal error for client ${clientState.id} - $err")
+        Console.errorln(s"Fatal error for client ${clientState.id} - $err").asF
       )
   }
 
-  private def logNewClient[F[_]: FlatMap: Console](
+  private def logNewClient[F[_]: FlatMap: ConsoleF](
       clientState: ConnectedClient[F],
       clientSocket: Socket[F]
   ): Stream[F, Nothing] =
     Stream.exec(
-      Console[F].info(s"Accepted client ${clientState.id} on ${clientSocket.peerAddress}")
+      Console.info(s"Accepted client ${clientState.id} on ${clientSocket.peerAddress}").asF
     )
 
   private def processIncoming[F[_]](
@@ -141,7 +141,7 @@ object Server:
           val cmd = message.tail.toLowerCase
           cmd match
             case "users" =>
-              val usernames = clients.named.map(_.flatMap(_.username).sorted)
+              val usernames = clients.named.map(_.flatMap(_.username).sortBy(_.value))
               usernames.flatMap(users =>
                 messageSocket.write1(Protocol.ServerCommand.Alert(users.mkString(", ")))
               )

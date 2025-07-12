@@ -13,6 +13,7 @@ object Protocol:
   enum ClientCommand:
     case RequestUsername(name: Username)
     case SendMessage(value: String)
+
   object ClientCommand:
     val codec: Codec[ClientCommand] = discriminated[ClientCommand]
       .by(uint8)
@@ -25,6 +26,7 @@ object Protocol:
     case Alert(text: String)
     case Message(name: Username, text: String)
     case Disconnect
+
   object ServerCommand:
     val codec: Codec[ServerCommand] = discriminated[ServerCommand]
       .by(uint8)

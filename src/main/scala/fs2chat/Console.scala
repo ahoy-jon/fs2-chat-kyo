@@ -1,59 +1,67 @@
 package fs2chat
 
-import cats.effect.Sync
-import cats.implicits._
-import org.jline.reader.EndOfFileException
-import org.jline.reader.LineReaderBuilder
-import org.jline.reader.UserInterruptException
+import org.jline.reader.{EndOfFileException, LineReader, LineReaderBuilder, UserInterruptException}
 import org.jline.utils.{AttributedStringBuilder, AttributedStyle}
+import kyo.*
+import cats.effect.{LiftIO, Sync as SyncC}
 
-trait Console[F[_]]:
-  def println(msg: String): F[Unit]
-  def info(msg: String): F[Unit]
-  def alert(msg: String): F[Unit]
-  def errorln(msg: String): F[Unit]
-  def readLine(prompt: String): F[Option[String]]
+opaque type Console = Sync & Env[LineReader]
+
+trait ConsoleF[F[_]]:
+  def lift[A](v: A < Console): F[A]
 
 object Console:
 
-  def apply[F[_]](implicit F: Console[F]): F.type = F
-
-  def create[F[_]: Sync]: F[Console[F]] =
-    Sync[F].delay {
-      new Console[F] {
-        private val reader =
-          LineReaderBuilder.builder().appName("fs2chat").build()
+  def create[F[_]: SyncC: LiftIO]: F[ConsoleF[F]] =
+    SyncC[F].delay(
+      new ConsoleF[F] {
+        val reader: LineReader                     = LineReaderBuilder.builder().appName("fs2chat").build()
         reader.setOpt(org.jline.reader.LineReader.Option.ERASE_LINE_ON_FINISH)
 
-        def println(msg: String): F[Unit] =
-          Sync[F].blocking(reader.printAbove(msg))
-
-        def info(msg: String): F[Unit] =
-          println("*** " + msg)
-
-        def alert(msg: String): F[Unit] =
-          println(
-            new AttributedStringBuilder()
-              .style(AttributedStyle.DEFAULT.foreground(AttributedStyle.BLUE))
-              .append("📢 " + msg)
-              .toAnsi
-          )
-
-        def errorln(msg: String): F[Unit] =
-          println(
-            new AttributedStringBuilder()
-              .style(AttributedStyle.DEFAULT.foreground(AttributedStyle.RED))
-              .append("❌ " + msg)
-              .toAnsi
-          )
-
-        def readLine(prompt: String): F[Option[String]] =
-          Sync[F]
-            .blocking(Some(reader.readLine(prompt)): Option[String])
-            .handleErrorWith {
-              case _: EndOfFileException     => (None: Option[String]).pure[F]
-              case _: UserInterruptException => (None: Option[String]).pure[F]
-              case t                         => Sync[F].raiseError(t)
-            }
+        override def lift[A](v: A < Console): F[A] =
+          LiftIO[F].liftIO(Cats.run(Env.run(reader)(v)))
       }
+    )
+
+  extension [A](v: A < Console) def asF[F[_]](using consoleK: ConsoleF[F]): F[A] = consoleK.lift(v)
+
+  def run[A, S](v: A < (Console & S)): A < (Sync & S) =
+    Sync.defer {
+      val reader: LineReader = LineReaderBuilder.builder().appName("fs2chat").build()
+      reader.setOpt(org.jline.reader.LineReader.Option.ERASE_LINE_ON_FINISH)
+      Env.run(reader)(v)
+    }
+
+  def println(msg: String): Unit < Console =
+    Env.use[LineReader](reader => Sync.defer(reader.printAbove(msg)))
+
+  def info(msg: String): Unit < Console =
+    println("*** " + msg)
+
+  def alert(msg: String): Unit < Console =
+    println(
+      new AttributedStringBuilder()
+        .style(AttributedStyle.DEFAULT.foreground(AttributedStyle.BLUE))
+        .append("📢 " + msg)
+        .toAnsi
+    )
+
+  def errorln(msg: String): Unit < Console =
+    println(
+      new AttributedStringBuilder()
+        .style(AttributedStyle.DEFAULT.foreground(AttributedStyle.RED))
+        .append("❌ " + msg)
+        .toAnsi
+    )
+
+  def readLine(prompt: String): Maybe[String] < Console =
+    Env.use[LineReader] { reader =>
+      Sync
+        .defer(Maybe(reader.readLine(prompt)))
+        .unpanic
+        .recoverSome {
+          case _: EndOfFileException     => Maybe.Absent
+          case _: UserInterruptException => Maybe.Absent
+        }
+        .orPanic
     }
