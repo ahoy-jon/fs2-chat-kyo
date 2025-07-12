@@ -1,12 +1,15 @@
 package fs2chat
 package server
 
+import cats.effect.unsafe.IORuntime
 import cats.effect.{ExitCode, IO, IOApp}
-import cats.implicits._
-import com.comcast.ip4s._
-import com.monovore.decline._
+import cats.implicits.*
+import com.comcast.ip4s.*
+import com.monovore.decline.*
+import kyo.KyoSchedulerIOApp
 
-object ServerApp extends IOApp:
+object ServerApp extends KyoSchedulerIOApp:
+
   private val argsParser: Command[Port] =
     Command("fs2chat-server", "FS2 Chat Server") {
       Opts

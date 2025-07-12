@@ -2,13 +2,14 @@ package fs2chat
 package client
 
 import cats.effect.{ExitCode, IO, IOApp}
-import cats.implicits._
-import com.comcast.ip4s._
-import com.monovore.decline._
+import cats.implicits.*
+import com.comcast.ip4s.*
+import com.monovore.decline.*
+import kyo.KyoSchedulerIOApp
 
-object ClientApp extends IOApp:
+object ClientApp extends KyoSchedulerIOApp:
   private val argsParser: Command[(Username, SocketAddress[IpAddress])] =
-    Command("fs2chat-client", "FS2 Chat Client") {
+    Command("fs2chat-cliegnt", "FS2 Chat Client") {
       (
         Opts
           .option[String]("username", "Desired username", "u")
