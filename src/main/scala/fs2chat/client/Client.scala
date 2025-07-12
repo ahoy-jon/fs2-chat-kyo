@@ -20,8 +20,8 @@ object Client:
         Stream.exec(Console[F].errorln(s"Failed to connect. Retrying in $retryDelay.")) ++
           start(address, desiredUsername)
             .delayBy(retryDelay)
-      case _: UserQuit => Stream.empty
-      case t           => Stream.raiseError(t)
+      case _: UserQuit         => Stream.empty
+      case t                   => Stream.raiseError(t)
     }
 
   private def connect[F[_]: Concurrent: Network: Console](
@@ -56,13 +56,13 @@ object Client:
       messageSocket: MessageSocket[F, Protocol.ServerCommand, Protocol.ClientCommand]
   )(implicit F: ApplicativeError[F, Throwable]): Stream[F, Unit] =
     messageSocket.read.evalMap {
-      case Protocol.ServerCommand.Alert(txt) =>
+      case Protocol.ServerCommand.Alert(txt)             =>
         Console[F].alert(txt)
       case Protocol.ServerCommand.Message(username, txt) =>
         Console[F].println(s"$username> $txt")
-      case Protocol.ServerCommand.SetUsername(username) =>
+      case Protocol.ServerCommand.SetUsername(username)  =>
         Console[F].alert("Assigned username: " + username)
-      case Protocol.ServerCommand.Disconnect =>
+      case Protocol.ServerCommand.Disconnect             =>
         F.raiseError[Unit](new UserQuit)
     }
 

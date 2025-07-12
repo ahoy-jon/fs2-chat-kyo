@@ -28,7 +28,7 @@ object ClientApp extends IOApp:
 
   def run(args: List[String]): IO[ExitCode] =
     argsParser.parse(args) match
-      case Left(help) => IO(System.err.println(help)).as(ExitCode.Error)
+      case Left(help)                        => IO(System.err.println(help)).as(ExitCode.Error)
       case Right((desiredUsername, address)) =>
         Console
           .create[IO]

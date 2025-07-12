@@ -29,29 +29,29 @@ object Server:
   private object ConnectedClient:
     def apply[F[_]: Concurrent: UUIDGen](socket: Socket[F]): F[ConnectedClient[F]] =
       for
-        id <- UUIDGen[F].randomUUID
+        id            <- UUIDGen[F].randomUUID
         messageSocket <- MessageSocket(
-          socket,
-          Protocol.ClientCommand.codec,
-          Protocol.ServerCommand.codec,
-          1024
-        )
+                           socket,
+                           Protocol.ClientCommand.codec,
+                           Protocol.ServerCommand.codec,
+                           1024
+                         )
       yield ConnectedClient(id, None, messageSocket)
 
   private class Clients[F[_]: Concurrent](ref: Ref[F, Map[UUID, ConnectedClient[F]]]):
-    def get(id: UUID): F[Option[ConnectedClient[F]]] = ref.get.map(_.get(id))
-    def all: F[List[ConnectedClient[F]]] = ref.get.map(_.values.toList)
-    def named: F[List[ConnectedClient[F]]] =
+    def get(id: UUID): F[Option[ConnectedClient[F]]]                 = ref.get.map(_.get(id))
+    def all: F[List[ConnectedClient[F]]]                             = ref.get.map(_.values.toList)
+    def named: F[List[ConnectedClient[F]]]                           =
       ref.get.map(_.values.toList.filter(_.username.isDefined))
-    def register(state: ConnectedClient[F]): F[Unit] =
+    def register(state: ConnectedClient[F]): F[Unit]                 =
       ref.update(oldClients => oldClients + (state.id -> state))
-    def unregister(id: UUID): F[Option[ConnectedClient[F]]] =
+    def unregister(id: UUID): F[Option[ConnectedClient[F]]]          =
       ref.modify(old => (old - id, old.get(id)))
     def setUsername(clientId: UUID, username: Username): F[Username] =
       ref.modify { clientsById =>
-        val usernameToSet =
+        val usernameToSet  =
           determineUniqueUsername(clientsById - clientId, username)
-        val updatedClient =
+        val updatedClient  =
           clientsById.get(clientId).map(_.copy(username = Some(usernameToSet)))
         val updatedClients = updatedClient
           .map(c => clientsById + (clientId -> c))
@@ -105,7 +105,7 @@ object Server:
   }.handleErrorWith {
     case _: UserQuit =>
       Stream.exec(Console[F].info(s"Client quit ${clientState.id}"))
-    case err =>
+    case err         =>
       Stream.exec(
         Console[F].errorln(s"Fatal error for client ${clientState.id} - $err")
       )
@@ -136,7 +136,7 @@ object Server:
           alertIfAltered *> messageSocket.write1(Protocol.ServerCommand.SetUsername(nameToSet)) *>
             clients.broadcast(Protocol.ServerCommand.Alert(s"$nameToSet connected."))
         }
-      case Protocol.ClientCommand.SendMessage(message) =>
+      case Protocol.ClientCommand.SendMessage(message)      =>
         if message.startsWith("/") then
           val cmd = message.tail.toLowerCase
           cmd match
@@ -145,10 +145,10 @@ object Server:
               usernames.flatMap(users =>
                 messageSocket.write1(Protocol.ServerCommand.Alert(users.mkString(", ")))
               )
-            case "quit" =>
+            case "quit"  =>
               messageSocket.write1(Protocol.ServerCommand.Disconnect) *>
                 F.raiseError(new UserQuit): F[Unit]
-            case _ =>
+            case _       =>
               messageSocket.write1(Protocol.ServerCommand.Alert("Unknown command"))
         else
           clients.get(clientId).flatMap {
@@ -159,7 +159,7 @@ object Server:
                 case Some(username) =>
                   val cmd = Protocol.ServerCommand.Message(username, message)
                   clients.broadcast(cmd)
-            case None => F.unit
+            case None         => F.unit
           }
     }.drain
 

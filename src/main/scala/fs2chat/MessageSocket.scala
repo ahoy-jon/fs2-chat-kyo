@@ -24,7 +24,7 @@ object MessageSocket:
   ): F[MessageSocket[F, In, Out]] =
     for outgoing <- Queue.bounded[F, Out](outputBound)
     yield new MessageSocket[F, In, Out] {
-      def read: Stream[F, In] =
+      def read: Stream[F, In]       =
         val readSocket = socket.reads
           .through(StreamDecoder.many(inDecoder).toPipeByte[F])
 
