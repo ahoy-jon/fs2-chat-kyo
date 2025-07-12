@@ -1,4 +1,8 @@
-# FS2 Chat
+# FS2 Chat in KYO
+
+⚠️⚠️⚠️ **Test project to try Kyo integration with CE** ⚠️⚠️⚠️
+
+---
 
 This repository contains a sample project that demonstrates the use of FS2 and related libraries by building a TCP based chat server app and client app.
 
