@@ -4,11 +4,13 @@ package server
 import cats.{FlatMap, MonadError}
 import cats.effect.{Async, Concurrent, Ref, Sync}
 import cats.effect.std.UUIDGen
-import cats.implicits._
+import cats.implicits.*
 import com.comcast.ip4s.{Port, SocketAddress}
 import fs2.Stream
 import fs2.io.net.{Network, Socket}
+
 import java.util.UUID
+import conversion.{K, asF}
 
 object Server:
 
@@ -68,7 +70,7 @@ object Server:
         .of(Map.empty[UUID, ConnectedClient[F]])
         .map(ref => new Clients(ref))
 
-  def start[F[_]: Concurrent: Network: ConsoleF: UUIDGen](port: Port) =
+  def start[F[_]: Concurrent: Network: K.Effect[Console]: UUIDGen](port: Port) =
     Stream.exec(Console.info(s"Starting server on port $port").asF) ++
       Stream
         .eval(Clients[F])
@@ -92,7 +94,7 @@ object Server:
         }
         .parJoinUnbounded
 
-  private def handleClient[F[_]: Concurrent: ConsoleF](
+  private def handleClient[F[_]: Concurrent: K.Effect[Console]](
       clients: Clients[F],
       clientState: ConnectedClient[F],
       clientSocket: Socket[F]
@@ -111,7 +113,7 @@ object Server:
       )
   }
 
-  private def logNewClient[F[_]: FlatMap: ConsoleF](
+  private def logNewClient[F[_]: FlatMap: K.Effect[Console]](
       clientState: ConnectedClient[F],
       clientSocket: Socket[F]
   ): Stream[F, Nothing] =
@@ -154,7 +156,7 @@ object Server:
           clients.get(clientId).flatMap {
             case Some(client) =>
               client.username match
-                case None =>
+                case None           =>
                   F.unit // Ignore messages sent before username assignment
                 case Some(username) =>
                   val cmd = Protocol.ServerCommand.Message(username, message)

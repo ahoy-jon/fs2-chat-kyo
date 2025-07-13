@@ -4,26 +4,24 @@ import org.jline.reader.{EndOfFileException, LineReader, LineReaderBuilder, User
 import org.jline.utils.{AttributedStringBuilder, AttributedStyle}
 import kyo.*
 import cats.effect.{LiftIO, Sync as SyncC}
+import fs2chat.conversion.K
 
 opaque type Console = Sync & Env[LineReader]
 
-trait ConsoleF[F[_]]:
-  def lift[A](v: A < Console): F[A]
+@main def toto() = println("toot")
 
 object Console:
 
-  def create[F[_]: SyncC: LiftIO]: F[ConsoleF[F]] =
+  def create[F[_]: SyncC: LiftIO]: F[K[F, Console]] =
     SyncC[F].delay(
-      new ConsoleF[F] {
-        val reader: LineReader                     = LineReaderBuilder.builder().appName("fs2chat").build()
+      new K[F, Console] {
+        val reader: LineReader = LineReaderBuilder.builder().appName("fs2chat").build()
         reader.setOpt(org.jline.reader.LineReader.Option.ERASE_LINE_ON_FINISH)
 
-        override def lift[A](v: A < Console): F[A] =
-          LiftIO[F].liftIO(Cats.run(Env.run(reader)(v)))
+        override def asF[A](f: A < Console): F[A] =
+          LiftIO[F].liftIO(Cats.run(Env.run(reader)(f)))
       }
     )
-
-  extension [A](v: A < Console) def asF[F[_]](using consoleK: ConsoleF[F]): F[A] = consoleK.lift(v)
 
   def run[A, S](v: A < (Console & S)): A < (Sync & S) =
     Sync.defer {

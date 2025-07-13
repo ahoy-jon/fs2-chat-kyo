@@ -10,9 +10,10 @@ import kyo.Maybe
 
 import java.net.ConnectException
 import scala.concurrent.duration.*
+import fs2chat.conversion.*
 
 object Client:
-  def start[F[_]: Temporal: Network: ConsoleF](
+  def start[F[_]: Temporal: Network: K.Effect[Console]](
       address: SocketAddress[IpAddress],
       desiredUsername: Username
   ): Stream[F, Unit] =
@@ -28,7 +29,7 @@ object Client:
       case t                   => Stream.raiseError(t)
     }
 
-  private def connect[F[_]: Concurrent: Network: ConsoleF](
+  private def connect[F[_]: Concurrent: Network: K.Effect[Console]](
       address: SocketAddress[IpAddress],
       desiredUsername: Username
   ): Stream[F, Unit] =
@@ -56,7 +57,7 @@ object Client:
               }
         }
 
-  private def processIncoming[F[_]: ConsoleF](
+  private def processIncoming[F[_]: K.Effect[Console]](
       messageSocket: MessageSocket[F, Protocol.ServerCommand, Protocol.ClientCommand]
   )(implicit F: ApplicativeError[F, Throwable]): Stream[F, Unit] =
     messageSocket.read.evalMap {
@@ -70,7 +71,7 @@ object Client:
         F.raiseError[Unit](new UserQuit)
     }
 
-  private def processOutgoing[F[_]: RaiseThrowable: ConsoleF](
+  private def processOutgoing[F[_]: RaiseThrowable: K.Effect[Console]](
       messageSocket: MessageSocket[F, Protocol.ServerCommand, Protocol.ClientCommand]
   ): Stream[F, Unit] =
     Stream
