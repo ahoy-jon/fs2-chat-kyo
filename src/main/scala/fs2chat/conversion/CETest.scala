@@ -1,7 +1,6 @@
 package fs2chat.conversion
 
 import cats.effect
-import fs2.io.net.Network
 import kyo.{<, Console, Kyo, KyoApp, Sync}
 
 object SyncExample {
@@ -24,8 +23,8 @@ object SyncExample {
 }
 
 object TestConv extends KyoApp:
-  def riskyOperation(str: String): Int < CE[effect.Sync] =
-    CE[effect.Sync](SyncExample.riskyOperation(str))
+  def riskyOperation(str: String): Int < Sync =
+    CE.lift(SyncExample.riskyOperation(str))
 
   run:
-    CE.run(riskyOperation("toto"))
+    riskyOperation("toto")
